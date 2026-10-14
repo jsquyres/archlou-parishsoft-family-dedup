@@ -175,7 +175,8 @@ data directory's `output/summary.md` after a run for current numbers.
   instead.
 - After any rule change:
   1. `python -m pytest`, `python -m ruff check .`,
-     `python -m ruff format --check .`
+     `python -m ruff format --check .` (CI runs the same on every pull
+     request; see `.github/workflows/tests.yml`).
   2. `python -I dedup.py --families F --members M --enhanced E --out-dir DIR`
      (about 2 minutes; caches rebuild after edits). Ask the user where the
      current exports are if they aren't where they were last time.

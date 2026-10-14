@@ -170,6 +170,10 @@ python -m ruff check .
 python -m ruff format --check .
 ```
 
+GitHub Actions runs the same lint and tests on every pull request
+(`.github/workflows/tests.yml`), on Python 3.12 and 3.14. CI has no access
+to the exports; the tests use invented data.
+
 Helper tools, both of which read personal data from the data directory and
 print it to the terminal only:
 
