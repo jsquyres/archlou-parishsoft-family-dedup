@@ -1,0 +1,564 @@
+<title>Duplicate Family Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a numbered pipeline spine, then the member-evidence decision ladder, case cards, grouping, survivor and results. */
+:root {
+  --bg: #eef2f1;
+  --surface: #ffffff;
+  --ink: #16232a;
+  --muted: #56676e;
+  --line: #c6d1d0;
+  --accent: #1d6b74;
+  --accent-soft: #d7e9ea;
+  --decide: #a8701a;
+  --keep: #2c7a4b;
+  --keep-soft: #dcefe3;
+  --apart: #ad3737;
+  --apart-soft: #f6dddd;
+  --warn-soft: #f5ead6;
+  --t1: #1d6b74; --t2: #4f9aa2; --t3: #b98a2e; --t4: #8b9296;
+  --f-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171a; --surface: #162126; --ink: #e2eaeb; --muted: #9badb2; --line: #2a3a40;
+    --accent: #62b9c1; --accent-soft: #1b3439; --decide: #e2ad4f; --keep: #63c08a; --keep-soft: #173327;
+    --apart: #e77b7b; --apart-soft: #3a1f21; --warn-soft: #33291a;
+    --t1: #62b9c1; --t2: #3f8790; --t3: #c9993f; --t4: #6f787c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171a; --surface: #162126; --ink: #e2eaeb; --muted: #9badb2; --line: #2a3a40;
+  --accent: #62b9c1; --accent-soft: #1b3439; --decide: #e2ad4f; --keep: #63c08a; --keep-soft: #173327;
+  --apart: #e77b7b; --apart-soft: #3a1f21; --warn-soft: #33291a;
+  --t1: #62b9c1; --t2: #3f8790; --t3: #c9993f; --t4: #6f787c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 64px; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 26px; font-weight: 700; }
+h3 { font-size: 17px; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 18px; }
+.sec-head { display: grid; gap: 6px; }
+
+/* Header */
+header { display: grid; gap: 14px; }
+.lede { font-size: 17px; color: var(--muted); max-width: 70ch; }
+.runline { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-family: var(--f-mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+
+/* Pipeline spine */
+.pipeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.stage { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 16px; }
+.rail { display: flex; flex-direction: column; align-items: center; }
+.num { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-mono); font-weight: 500; background: var(--accent); color: var(--bg); flex: none; }
+.rail::after { content: ""; flex: 1; width: 2px; background: var(--line); margin-block: 6px; min-height: 18px; }
+.stage:last-child .rail::after { display: none; }
+.stage-body { padding-bottom: 26px; display: grid; gap: 10px; min-width: 0; }
+.stage-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.stat { font-family: var(--f-mono); font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 13px; padding: 3px 10px; border-radius: 4px; background: var(--surface); border: 1px solid var(--line); }
+.inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.input { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: grid; gap: 2px; }
+.input b { font-family: var(--f-display); font-size: 15px; }
+.input .mono { font-size: 20px; color: var(--ink); }
+.input small { color: var(--muted); font-size: 13px; }
+
+/* Figures */
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 75ch; }
+.scroll { overflow-x: auto; }
+svg { display: block; max-width: 100%; height: auto; }
+.ladder svg { min-width: 620px; }
+
+/* Cases */
+.cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.case { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.recs { display: grid; gap: 6px; }
+.rec { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; font-size: 13.5px; align-items: baseline; }
+.rec i { font-style: normal; font-family: var(--f-mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; text-align: center; line-height: 18px; }
+.outcome { justify-self: start; font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.o-merge { background: var(--keep-soft); color: var(--keep); }
+.o-apart { background: var(--apart-soft); color: var(--apart); }
+.o-lower { background: var(--warn-soft); color: var(--decide); }
+.case p { font-size: 13.5px; color: var(--muted); }
+
+/* Two-column blocks */
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+ol.rank { margin: 0; padding: 0; list-style: none; counter-reset: r; display: grid; gap: 8px; }
+ol.rank li { counter-increment: r; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+ol.rank li::before { content: counter(r); font-family: var(--f-mono); font-size: 13px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--accent); color: var(--accent); }
+ol.rank b { font-weight: 600; }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-top: 1px solid var(--line); }
+th { font-family: var(--f-display); font-weight: 700; white-space: nowrap; }
+.tier { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+
+/* Bars */
+.bars { display: grid; gap: 10px; }
+.bar { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: 14px; }
+.track { height: 14px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.fill { height: 100%; border-radius: 3px; }
+.bar .mono { text-align: right; font-size: 13px; }
+
+ul.notes { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+ul.notes b { font-weight: 600; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+@media (max-width: 520px) {
+  .wrap { padding-inline: 16px; }
+  .bar { grid-template-columns: 1fr 56px; }
+  .bar .track { grid-column: 1 / -1; grid-row: 2; }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">How dedup.py works</span>
+  <h1>Finding the same Family twice</h1>
+  <p class="lede">The script reads an Archdiocese-wide ParishSoft export and looks for Family records that are really one household. It also keeps apart Families that share a person but are different households, such as after a divorce or when a grown child has their own Family. Every match carries a confidence level and plain-language reasons.</p>
+  <div class="runline">
+    <span class="chip">Latest run · 12 Oct 2026</span>
+    <span class="chip">≈ 2 min per run</span>
+    <span class="chip">Five independent code reviews</span>
+  </div>
+</header>
+
+<section aria-labelledby="pipe-h">
+  <div class="sec-head">
+    <span class="eyebrow">The pipeline</span>
+    <h2 id="pipe-h">Seven steps from spreadsheets to merge list</h2>
+  </div>
+  <ol class="pipeline">
+    <li class="stage">
+      <div class="rail"><span class="num">1</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Read three exports</h3><span class="stat">joined by Family DUID</span></div>
+        <div class="inputs">
+          <div class="input"><b>Families</b><span class="mono">159,235</span><small>names, address, phones, email, parish, status, dates</small></div>
+          <div class="input"><b>Members</b><span class="mono">381,561</span><small>names, birthdate, role, deceased, cell, email, edits</small></div>
+          <div class="input"><b>Enhanced Families</b><span class="mono">159,233</span><small>"last updated" date and emergency phone; 349 broken rows skipped</small></div>
+        </div>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="rail"><span class="num">2</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Clean every value</h3><span class="stat">300 placeholder Families dropped</span></div>
+        <p>Records are put into one comparable form before anything is compared.</p>
+        <div class="tags">
+          <span class="tag">"126 N. Birchwood Avenue" = "126 N Birchwood"</span>
+          <span class="tag">Bill = William, Pat = Patrick or Patricia</span>
+          <span class="tag">Patricia ≠ Patrick, Juan ≠ Juana</span>
+          <span class="tag">O'Brien = OBrien</span>
+          <span class="tag">"no email", "UNLISTED", "N/A" treated as blank</span>
+          <span class="tag">Loose Collection, Unknown Family skipped</span>
+        </div>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="rail"><span class="num">3</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Pick candidate pairs</h3><span class="stat">395,421 pairs to compare</span></div>
+        <p>Comparing every Family with every other would mean about 12.7 billion pairs. Instead, two records are compared only if they share one of these:</p>
+        <div class="tags">
+          <span class="tag">an email</span><span class="tag">a phone (home, cell, emergency)</span><span class="tag">a street address</span><span class="tag">surname + ZIP</span><span class="tag">a person: same name + exact birthdate</span>
+        </div>
+        <p class="muted">The last key finds Families that moved and changed every address, phone and parish.</p>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="rail"><span class="num">4</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Score the Family records</h3><span class="stat">base confidence</span></div>
+        <p>Surname (same, or similar such as a typo or compound name), first names (same, overlapping, or different), and how many contacts they share: email, phone, address. Contact info shared by more than three surnames, such as a nursing home or parish office, doesn't count.</p>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="rail"><span class="num">5</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Check the Members</h3><span class="stat">46,044 kept · 23,746 kept apart</span></div>
+        <p>The people in each Family confirm, raise, lower or overrule the base score. The checks run in a fixed order, shown in the decision ladder below.</p>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="rail"><span class="num">6</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Build duplicate groups</h3><span class="stat">23,157 groups</span></div>
+        <p>Matches join into groups, strongest evidence first. A link is skipped if it would put two Families that were kept apart, or that fail the same checks when compared directly, into the same group. A record left out of every group is listed on a separate sheet for review.</p>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="rail"><span class="num">7</span></div>
+      <div class="stage-body">
+        <div class="stage-top"><h3>Choose a survivor and write the workbook</h3><span class="stat">32,056 Families to merge</span></div>
+        <p>Each group keeps one record and lists the others as (survivor, merged) pairs ready for ParishSoft's merge tool. The workbook has five sheets: Duplicates, Merge Pairs, Reasons, Not Grouped and Summary.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section aria-labelledby="ladder-h">
+  <div class="sec-head">
+    <span class="eyebrow">Step 5 in detail</span>
+    <h2 id="ladder-h">The Member decision ladder</h2>
+  </div>
+  <figure class="ladder">
+    <div class="scroll">
+      <svg viewBox="0 0 720 742" role="img" aria-label="Decision ladder: a candidate pair passes five checks in order, any of which can set it aside as related or different people, then gets its confidence set by exact Member matches and adjusted if one Family has an extra adult.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          <marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--apart)"/></marker>
+        </defs>
+        <g font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="13" fill="currentColor" style="color: var(--ink)">
+          <!-- start -->
+          <rect x="30" y="10" width="360" height="48" rx="6" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+          <text x="210" y="31" text-anchor="middle" font-weight="600">Candidate pair + base confidence</text>
+          <text x="210" y="48" text-anchor="middle" font-size="12" style="fill:var(--muted)">from step 4 (names, email, phone, address)</text>
+          <line x1="210" y1="58" x2="210" y2="76" stroke="currentColor" marker-end="url(#ah)"/>
+
+          <!-- decisions: y = 78, 158, 238, 318, 398 -->
+          <g>
+            <rect x="30" y="78" width="360" height="52" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--decide)"/>
+            <text x="46" y="100" font-weight="600">The shared person is an ex-spouse</text>
+            <text x="46" y="118" font-size="12" style="fill:var(--muted)">in one of the two Families?</text>
+            <rect x="460" y="83" width="240" height="42" rx="6" style="fill:var(--apart-soft);stroke:var(--apart)"/>
+            <text x="580" y="101" text-anchor="middle" font-weight="600" style="fill:var(--apart)">Kept apart</text>
+            <text x="580" y="117" text-anchor="middle" font-size="12" style="fill:var(--apart)">the ex's own household</text>
+            <line x1="390" y1="104" x2="458" y2="104" marker-end="url(#ahr)" style="stroke:var(--apart)"/>
+            <text x="424" y="98" text-anchor="middle" font-size="12" style="fill:var(--apart)">yes</text>
+            <line x1="210" y1="130" x2="210" y2="156" stroke="currentColor" marker-end="url(#ah)"/>
+            <text x="220" y="147" font-size="12" style="fill:var(--muted)">no</text>
+          </g>
+          <g>
+            <rect x="30" y="158" width="360" height="52" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--decide)"/>
+            <text x="46" y="180" font-weight="600">Head/spouse here, child or parent there,</text>
+            <text x="46" y="198" font-size="12" style="fill:var(--muted)">and no head/spouse appears in both?</text>
+            <rect x="460" y="163" width="240" height="42" rx="6" style="fill:var(--apart-soft);stroke:var(--apart)"/>
+            <text x="580" y="181" text-anchor="middle" font-weight="600" style="fill:var(--apart)">Kept apart · 1,265</text>
+            <text x="580" y="197" text-anchor="middle" font-size="12" style="fill:var(--apart)">grown child, or parent moved in</text>
+            <line x1="390" y1="184" x2="458" y2="184" marker-end="url(#ahr)" style="stroke:var(--apart)"/>
+            <text x="424" y="178" text-anchor="middle" font-size="12" style="fill:var(--apart)">yes</text>
+            <line x1="210" y1="210" x2="210" y2="236" stroke="currentColor" marker-end="url(#ah)"/>
+            <text x="220" y="227" font-size="12" style="fill:var(--muted)">no</text>
+          </g>
+          <g>
+            <rect x="30" y="238" width="360" height="52" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--decide)"/>
+            <text x="46" y="260" font-weight="600">Same person, but each Family has a</text>
+            <text x="46" y="278" font-size="12" style="fill:var(--muted)">living partner the other lacks?</text>
+            <rect x="460" y="243" width="240" height="42" rx="6" style="fill:var(--apart-soft);stroke:var(--apart)"/>
+            <text x="580" y="261" text-anchor="middle" font-weight="600" style="fill:var(--apart)">Kept apart · 875</text>
+            <text x="580" y="277" text-anchor="middle" font-size="12" style="fill:var(--apart)">divorce and remarriage</text>
+            <line x1="390" y1="264" x2="458" y2="264" marker-end="url(#ahr)" style="stroke:var(--apart)"/>
+            <text x="424" y="258" text-anchor="middle" font-size="12" style="fill:var(--apart)">yes</text>
+            <line x1="210" y1="290" x2="210" y2="316" stroke="currentColor" marker-end="url(#ah)"/>
+            <text x="220" y="307" font-size="12" style="fill:var(--muted)">no</text>
+          </g>
+          <g>
+            <rect x="30" y="318" width="360" height="52" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--decide)"/>
+            <text x="46" y="340" font-weight="600">Same-named adults with different</text>
+            <text x="46" y="358" font-size="12" style="fill:var(--muted)">birthdates, or Jr. vs Sr.?</text>
+            <rect x="460" y="323" width="240" height="42" rx="6" style="fill:var(--apart-soft);stroke:var(--apart)"/>
+            <text x="580" y="341" text-anchor="middle" font-weight="600" style="fill:var(--apart)">Kept apart · 468</text>
+            <text x="580" y="357" text-anchor="middle" font-size="12" style="fill:var(--apart)">different people</text>
+            <line x1="390" y1="344" x2="458" y2="344" marker-end="url(#ahr)" style="stroke:var(--apart)"/>
+            <text x="424" y="338" text-anchor="middle" font-size="12" style="fill:var(--apart)">yes</text>
+            <line x1="210" y1="370" x2="210" y2="396" stroke="currentColor" marker-end="url(#ah)"/>
+            <text x="220" y="387" font-size="12" style="fill:var(--muted)">no</text>
+          </g>
+          <g>
+            <rect x="30" y="398" width="360" height="52" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--decide)"/>
+            <text x="46" y="420" font-weight="600">Both sides have adults, none in</text>
+            <text x="46" y="438" font-size="12" style="fill:var(--muted)">common (living or late)?</text>
+            <rect x="460" y="403" width="240" height="42" rx="6" style="fill:var(--apart-soft);stroke:var(--apart)"/>
+            <text x="580" y="421" text-anchor="middle" font-weight="600" style="fill:var(--apart)">Kept apart · 4,925</text>
+            <text x="580" y="437" text-anchor="middle" font-size="12" style="fill:var(--apart)">different households</text>
+            <line x1="390" y1="424" x2="458" y2="424" marker-end="url(#ahr)" style="stroke:var(--apart)"/>
+            <text x="424" y="418" text-anchor="middle" font-size="12" style="fill:var(--apart)">yes</text>
+            <line x1="210" y1="450" x2="210" y2="476" stroke="currentColor" marker-end="url(#ah)"/>
+            <text x="220" y="467" font-size="12" style="fill:var(--muted)">no</text>
+          </g>
+
+          <!-- confidence setting -->
+          <rect x="30" y="478" width="360" height="100" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--accent)"/>
+          <text x="46" y="500" font-weight="600">Set confidence from Member matches</text>
+          <text x="46" y="520" font-size="12">2+ people match exactly, incl. an adult → Very high</text>
+          <text x="46" y="537" font-size="12">One adult matches exactly → Very high or High</text>
+          <text x="46" y="554" font-size="12">Only children match exactly → base, at most Medium</text>
+          <text x="46" y="571" font-size="12">Adults match by name only → base (Low raised to Medium)</text>
+          <line x1="210" y1="578" x2="210" y2="604" stroke="currentColor" marker-end="url(#ah)"/>
+
+          <!-- extra adult -->
+          <rect x="30" y="606" width="360" height="52" rx="6" stroke-width="1.5" style="fill:var(--surface);stroke:var(--decide)"/>
+          <text x="46" y="628" font-weight="600">One Family has an extra living adult?</text>
+          <text x="46" y="646" font-size="12" style="fill:var(--muted)">e.g. John alone vs John + Susan</text>
+          <rect x="460" y="598" width="240" height="68" rx="6" style="fill:var(--warn-soft);stroke:var(--decide)"/>
+          <text x="474" y="618" font-size="12" font-weight="600" style="fill:var(--keep)">Other spouse deceased (same</text>
+          <text x="474" y="633" font-size="12" font-weight="600" style="fill:var(--keep)">generation), same person → no change</text>
+          <text x="474" y="654" font-size="12" font-weight="600" style="fill:var(--decide)">Otherwise → down one level</text>
+          <line x1="390" y1="632" x2="458" y2="632" stroke="currentColor" marker-end="url(#ah)"/>
+          <text x="424" y="626" text-anchor="middle" font-size="12" style="fill:var(--muted)">yes</text>
+          <line x1="210" y1="658" x2="210" y2="684" stroke="currentColor" marker-end="url(#ah)"/>
+          <text x="220" y="675" font-size="12" style="fill:var(--muted)">no</text>
+
+          <rect x="30" y="686" width="360" height="46" rx="6" style="fill:var(--keep-soft);stroke:var(--keep)"/>
+          <text x="210" y="714" text-anchor="middle" font-weight="600" style="fill:var(--keep)">Match kept, with confidence and reasons</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Each candidate pair passes the five checks in order. A "yes" on any check keeps the pair apart: it is never merged, and the two records are never placed in the same group later. Counts are pairs that the Family fields alone would have kept. One exception to the fourth check: two single-adult records that share no one (such as each spouse's record from before the marriage) are not merged with each other, but are not kept apart either, so both can still merge into the couple's record (2,503 such pairs), unless the two adults are a generation apart.</figcaption>
+  </figure>
+</section>
+
+<section aria-labelledby="cases-h">
+  <div class="sec-head">
+    <span class="eyebrow">Special cases</span>
+    <h2 id="cases-h">Life events the rules account for</h2>
+    <p class="muted">Example names are invented.</p>
+  </div>
+  <div class="cases">
+    <article class="case">
+      <h3>Moved to a new parish</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>John &amp; Mary Reyes · Inactive · old parish</span></div>
+        <div class="rec"><i>B</i><span>John &amp; Mary Reyes · Active · new parish, new address</span></div>
+      </div>
+      <span class="outcome o-merge">Merge into the Active parish</span>
+      <p>Same people by name and birthdate, even though every contact changed. The most common case: 18,360 merges.</p>
+    </article>
+    <article class="case">
+      <h3>Divorce and remarriage</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>John + Mary + their children</span></div>
+        <div class="rec"><i>B</i><span>John + Susan</span></div>
+      </div>
+      <span class="outcome o-apart">Kept apart</span>
+      <p>John is in both, but each Family has a living partner the other doesn't.</p>
+    </article>
+    <article class="case">
+      <h3>Widowed and remarried</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>John + Mary (deceased)</span></div>
+        <div class="rec"><i>B</i><span>John + Susan</span></div>
+      </div>
+      <span class="outcome o-merge">Merge, full confidence</span>
+      <p>The only living adult in A lives in B, and both Mary and Susan are of John's generation (a late parent, or a grown child, doesn't count). Deaths are read from the deceased flag, date of death, Member Status or a "Dec." type.</p>
+    </article>
+    <article class="case">
+      <h3>Ex-spouse's own household</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>Tom + Ann (typed "Ex-Wife")</span></div>
+        <div class="rec"><i>B</i><span>Ann + children</span></div>
+      </div>
+      <span class="outcome o-apart">Kept apart</span>
+      <p>An ex-spouse who matches the other Family's head marks two households.</p>
+    </article>
+    <article class="case">
+      <h3>Grown child with their own Family</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>Parents + Sam (Child or "Adult", age 34)</span></div>
+        <div class="rec"><i>B</i><span>Sam (Head) + spouse</span></div>
+      </div>
+      <span class="outcome o-apart">Kept apart</span>
+      <p>Works on a name-only match too. "Unknown"/"Adult" Members under 18, or 18+ years younger than another Member, count as children.</p>
+    </article>
+    <article class="case">
+      <h3>Parent moved in with a child</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>Rose (Head), her own record</span></div>
+        <div class="rec"><i>B</i><span>Daughter + husband + Rose ("Mother")</span></div>
+      </div>
+      <span class="outcome o-apart">Kept apart</span>
+      <p>Head in one Family, parent in the other, with no head or spouse in both.</p>
+    </article>
+    <article class="case">
+      <h3>Separated parents</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>Mom + Ella + Max</span></div>
+        <div class="rec"><i>B</i><span>Dad + Ella + Max</span></div>
+      </div>
+      <span class="outcome o-apart">Kept apart</span>
+      <p>The children match exactly, but each Family has a parent the other lacks.</p>
+    </article>
+    <article class="case">
+      <h3>Father and son, same name</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>John Smith, b. 1950</span></div>
+        <div class="rec"><i>B</i><span>John Smith, b. 1985, same street</span></div>
+      </div>
+      <span class="outcome o-apart">Kept apart</span>
+      <p>Different birthdates, or Jr. vs Sr. One-digit or swapped-digit typos are still treated as one person.</p>
+    </article>
+    <article class="case">
+      <h3>Spouse recorded differently</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>Mark + Terri Dunn (née Lowe)</span></div>
+        <div class="rec"><i>B</i><span>Mark + Teri Lowe, birthdates swapped</span></div>
+      </div>
+      <span class="outcome o-merge">Merge</span>
+      <p>A spouse counts as present if a spouse in the other record has the same name, middle name, exact birthdate or a one-letter spelling variant.</p>
+    </article>
+    <article class="case">
+      <h3>Single record vs married record</h3>
+      <div class="recs">
+        <div class="rec"><i>A</i><span>John alone</span></div>
+        <div class="rec"><i>B</i><span>John + Susan</span></div>
+      </div>
+      <span class="outcome o-lower">Merge, one level lower</span>
+      <p>This could be a record from before the marriage (a duplicate) or after a divorce (not), so it is flagged with lower confidence. If both spouses have single records, both can merge into the couple's record.</p>
+    </article>
+  </div>
+</section>
+
+<section aria-labelledby="group-h">
+  <div class="sec-head">
+    <span class="eyebrow">Step 6 in detail</span>
+    <h2 id="group-h">Grouping without chaining</h2>
+  </div>
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 640 210" role="img" aria-label="Records A and B are kept apart as divorced households. Both match C. C joins A through the stronger link, and the weaker B to C link is skipped so A and B never share a group.">
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+        </defs>
+        <g font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="13" style="color: var(--ink)" fill="currentColor">
+          <text x="150" y="20" text-anchor="middle" font-size="12" style="fill:var(--muted)">Matches found</text>
+          <line x1="78" y1="70" x2="138" y2="150" stroke-width="3" style="stroke:var(--t1)"/>
+          <line x1="222" y1="70" x2="162" y2="150" stroke-width="3" style="stroke:var(--t3)"/>
+          <line x1="86" y1="52" x2="214" y2="52" stroke-width="2" stroke-dasharray="6 5" style="stroke:var(--apart)"/>
+          <circle cx="66" cy="52" r="22" stroke="currentColor" style="fill:var(--surface)"/>
+          <text x="66" y="57" text-anchor="middle" font-weight="600">A</text>
+          <circle cx="234" cy="52" r="22" stroke="currentColor" style="fill:var(--surface)"/>
+          <text x="234" y="57" text-anchor="middle" font-weight="600">B</text>
+          <circle cx="150" cy="166" r="22" stroke="currentColor" style="fill:var(--surface)"/>
+          <text x="150" y="171" text-anchor="middle" font-weight="600">C</text>
+          <text x="150" y="44" text-anchor="middle" font-size="12" style="fill:var(--apart)">kept apart</text>
+          <text x="84" y="122" text-anchor="end" font-size="12" style="fill:var(--t1)">Very high</text>
+          <text x="216" y="122" font-size="12" style="fill:var(--t3)">Medium</text>
+
+          <line x1="290" y1="110" x2="350" y2="110" stroke="currentColor" marker-end="url(#ah2)"/>
+          <text x="320" y="100" text-anchor="middle" font-size="12" style="fill:var(--muted)">strongest first</text>
+
+          <text x="500" y="20" text-anchor="middle" font-size="12" style="fill:var(--muted)">Groups written</text>
+          <rect x="376" y="40" width="150" height="150" rx="10" style="fill:var(--keep-soft);stroke:var(--keep)"/>
+          <text x="451" y="60" text-anchor="middle" font-size="12" style="fill:var(--keep)">group 1</text>
+          <line x1="430" y1="98" x2="450" y2="140" stroke-width="3" style="stroke:var(--t1)"/>
+          <circle cx="424" cy="88" r="20" stroke="currentColor" style="fill:var(--surface)"/>
+          <text x="424" y="93" text-anchor="middle" font-weight="600">A</text>
+          <circle cx="458" cy="156" r="20" stroke="currentColor" style="fill:var(--surface)"/>
+          <text x="458" y="161" text-anchor="middle" font-weight="600">C</text>
+          <circle cx="584" cy="110" r="20" stroke="currentColor" style="fill:var(--surface)"/>
+          <text x="584" y="115" text-anchor="middle" font-weight="600">B</text>
+          <text x="584" y="148" text-anchor="middle" font-size="12" style="fill:var(--muted)">B–C link</text>
+          <text x="584" y="163" text-anchor="middle" font-size="12" style="fill:var(--muted)">skipped</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Two divorced households can each match a third record, such as an old "John alone" record. Links are added strongest evidence first, and any link that would put a kept-apart pair in one group is skipped (611 in the latest run). Records left in no group (282) are listed on the Not Grouped sheet. A record linked only through another record shows one confidence level lower, and groups larger than eight drop such indirect links to Low.</figcaption>
+  </figure>
+</section>
+
+<section aria-labelledby="surv-h">
+  <div class="sec-head">
+    <span class="eyebrow">Step 7 in detail</span>
+    <h2 id="surv-h">Which record survives</h2>
+  </div>
+  <div class="split">
+    <div class="panel">
+      <h3>Survivor ranking, first difference wins</h3>
+      <ol class="rank">
+        <li><span><b>Registered</b> = Yes</span></li>
+        <li><span><b>Active</b> group, so a Family that moved merges into the parish where it is Active</span></li>
+        <li><span><b>Has a living Member</b></span></li>
+        <li><span><b>Most recent real activity:</b> membership date, unregistered date, Family "last updated", or a Member edit</span></li>
+        <li><span><b>Most fields filled in</b></span></li>
+        <li><span><b>Lowest DUID</b> (tie-breaker)</span></li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>Bulk dates are ignored</h3>
+      <p class="muted" style="font-size:14px">Mass cleanups stamp thousands of records at once, which would make them look recently active. A date doesn't count as activity if it falls on:</p>
+      <ul class="notes">
+        <li>a day with <b>500+</b> unregistrations or updates Archdiocese-wide (e.g. 14,869 on 11 Dec 2024)</li>
+        <li>a day with <b>100+</b> in a single parish</li>
+        <li>a minute with <b>200+</b> Member edits (the 2023–24 conversions)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="conf-h">
+  <div class="sec-head">
+    <span class="eyebrow">Confidence</span>
+    <h2 id="conf-h">What each level means</h2>
+  </div>
+  <div class="panel scroll">
+    <table>
+      <thead><tr><th>Level</th><th>Typical evidence</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tier"><span class="sw" style="background:var(--t1)"></span>Very high</span></td><td>Two or more people match by name and exact birthdate, or same surname and first names with shared contact info</td></tr>
+        <tr><td><span class="tier"><span class="sw" style="background:var(--t2)"></span>High</span></td><td>Same surname, overlapping first names ("David" vs "David &amp; Kim") and one shared contact; or one adult matches exactly with no shared contact</td></tr>
+        <tr><td><span class="tier"><span class="sw" style="background:var(--t3)"></span>Medium</span></td><td>Same names in the same ZIP with no shared contact (likely a move); a similar surname; only children match exactly</td></tr>
+        <tr><td><span class="tier"><span class="sw" style="background:var(--t4)"></span>Low (review)</span></td><td>Different first names at one address, one Family with an extra adult, or a link through other records in a large group. Review before merging.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="res-h">
+  <div class="sec-head">
+    <span class="eyebrow">Latest run</span>
+    <h2 id="res-h">Results</h2>
+  </div>
+  <div class="split">
+    <figure>
+      <h3>Families to merge, by confidence</h3>
+      <div class="bars" role="img" aria-label="Families to merge: Very high 18,799; High 6,299; Medium 5,097; Low 1,861.">
+        <div class="bar"><span>Very high</span><div class="track"><div class="fill" style="width:100%;background:var(--t1)"></div></div><span class="mono">18,799</span></div>
+        <div class="bar"><span>High</span><div class="track"><div class="fill" style="width:33.51%;background:var(--t2)"></div></div><span class="mono">6,299</span></div>
+        <div class="bar"><span>Medium</span><div class="track"><div class="fill" style="width:27.11%;background:var(--t3)"></div></div><span class="mono">5,097</span></div>
+        <div class="bar"><span>Low (review)</span><div class="track"><div class="fill" style="width:9.90%;background:var(--t4)"></div></div><span class="mono">1,861</span></div>
+      </div>
+      <figcaption>32,056 Families in 23,157 groups. Bars share one scale.</figcaption>
+    </figure>
+    <figure>
+      <h3>Pairs kept apart, by reason</h3>
+      <div class="bars" role="img" aria-label="Pairs kept apart: different households 4,925; grown child or parent 1,265; divorce and remarriage 875; different people 468; ex-spouse 27.">
+        <div class="bar"><span>Different households</span><div class="track"><div class="fill" style="width:100%;background:var(--apart)"></div></div><span class="mono">4,925</span></div>
+        <div class="bar"><span>Grown child / parent</span><div class="track"><div class="fill" style="width:25.69%;background:var(--apart)"></div></div><span class="mono">1,265</span></div>
+        <div class="bar"><span>Divorce, remarriage</span><div class="track"><div class="fill" style="width:17.77%;background:var(--apart)"></div></div><span class="mono">875</span></div>
+        <div class="bar"><span>Different people</span><div class="track"><div class="fill" style="width:9.50%;background:var(--apart)"></div></div><span class="mono">468</span></div>
+        <div class="bar"><span>Ex-spouse</span><div class="track"><div class="fill" style="width:0.55%;background:var(--apart)"></div></div><span class="mono">27</span></div>
+      </div>
+      <figcaption>Only pairs the Family fields alone would have matched are counted. In all, 23,746 pairs are kept from ever sharing a group.</figcaption>
+    </figure>
+  </div>
+  <div class="panel">
+    <h3>Data quirks handled along the way</h3>
+    <ul class="notes">
+      <li><b>Catch-all records:</b> 25 Families whose Members have six or more surnames, such as a certificate holding record, give no Member evidence.</li>
+      <li><b>Placeholder Members:</b> entries whose first name is the surname (contribution records) are ignored, unless they have a birthdate, a nickname or a specific role such as Daughter.</li>
+      <li><b>Shared contact info:</b> an address, phone or email used by more than three surnames, such as a nursing home or parish office, isn't treated as evidence.</li>
+      <li><b>Broken rows:</b> 349 shifted rows in the enhanced export and 3 in the Family export are skipped.</li>
+      <li><b>Suspect birth years:</b> about 35 records in one parish show 1999–2001 where other records show 1937–43. They are treated as different people.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>A one-off analysis script (dedup.py) using Python, openpyxl and rapidfuzz. It reads only the three exports. Nothing is merged automatically: the Merge Pairs sheet is for the Archdiocese to review and apply.</footer>
+
+</div>
