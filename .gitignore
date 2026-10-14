@@ -1,0 +1,20 @@
+# NO PERSONAL DATA IN THIS REPOSITORY.  ParishSoft exports, caches, reports
+# and anything listing real names or DUIDs live in a data directory outside
+# the checkout (see README).  These patterns are a safety net only.
+*.xlsx
+*.xls
+*.csv
+*.pickle
+*.tmp
+output/
+data/
+summary.md
+
+# Python / tooling
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
