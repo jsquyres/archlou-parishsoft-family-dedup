@@ -10,7 +10,7 @@ where expect is "together" (same duplicate group) or "apart" (never in the
 same group), and note is a short description with no names.
 
 Usage:
-  tools/check_pairs.py REPORT.xlsx EXPECTATIONS.csv
+  tools/check_pairs.py --report REPORT.xlsx --expectations EXPECTATIONS.csv
 
 Exit status is 1 if any expectation fails.
 """
@@ -33,8 +33,8 @@ def groups(path):
 def main():
     """Compare each expectation with the report and print a pass/fail line."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("report")
-    ap.add_argument("expectations")
+    ap.add_argument("--report", required=True, help="report workbook from dedup.py (.xlsx)")
+    ap.add_argument("--expectations", required=True, help="known outcomes CSV (kept outside the repo)")
     args = ap.parse_args()
 
     grp = groups(args.report)

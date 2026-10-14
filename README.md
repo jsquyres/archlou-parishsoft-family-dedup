@@ -22,9 +22,10 @@ A visual overview of the pipeline and rules is in
 
 **This repository contains no personal data, and must never contain any.**
 The ParishSoft exports, the script's caches and reports, and any list of
-real names or DUIDs live in a data directory outside the git checkout (by
-default `~/archlou-dedup`). `.gitignore` blocks spreadsheets, CSVs, caches
-and outputs as a safety net. Tests and docs use invented names only.
+real names or DUIDs live in a data directory outside the git checkout.
+`dedup.py` refuses an output directory inside the checkout, and
+`.gitignore` blocks spreadsheets, CSVs, caches and outputs as a safety net.
+Tests and docs use invented names only.
 
 ## Setup
 
@@ -40,13 +41,14 @@ pip install -r requirements-dev.txt    # also: pytest, ruff
 ## Inputs
 
 Three ParishSoft Archdiocese-level exports (`.xlsx`, first sheet, one header
-row):
+row), each passed by its own option. File names and locations are up to
+you.
 
-| Export | Default file name | Used for |
+| Option | Export | Used for |
 |---|---|---|
-| Families | `archlou-families-list-to-deduplicate.xlsx` | one row per Family: names, Primary address, Home/Primary phone, email, Organization (parish), Is Registered, Group Name, Membership Date, Date Unregistered |
-| Members | `archlou-members-list.xlsx` | one row per Member, keyed by Family DUID: formal/nickname/middle/last/maiden names, suffix, birthdate, Member Type, deceased flag, date of death, Member Status, cell phone, email, Date Modified |
-| Enhanced Families (optional) | `archlou-families-list-to-deduplicate-enhanced.xlsx` | Family "Date Last Updated" and Emergency Phone (+ description) |
+| `--families` (required) | Families | one row per Family: names, Primary address, Home/Primary phone, email, Organization (parish), Is Registered, Group Name, Membership Date, Date Unregistered |
+| `--members` (required) | Members | one row per Member, keyed by Family DUID: formal/nickname/middle/last/maiden names, suffix, birthdate, Member Type, deceased flag, date of death, Member Status, cell phone, email, Date Modified |
+| `--enhanced` (optional) | Enhanced Families | Family "Date Last Updated" and Emergency Phone (+ description) |
 
 The exact column headers the script reads are the `COLS`, `MEMBER_COLS` and
 `ENHANCED_COLS` tables at the top of `dedup.py`. If ParishSoft renames a
@@ -55,23 +57,16 @@ column, update those tables.
 ## Running
 
 ```sh
-./run.sh
+python -I dedup.py \
+    --families /path/to/families.xlsx \
+    --members /path/to/members.xlsx \
+    --enhanced /path/to/families-enhanced.xlsx \
+    --out-dir /path/to/output
 ```
 
-`run.sh` reads the exports from `$DATA_DIR` (default `~/archlou-dedup`) and
-writes reports and caches to `$DATA_DIR/output`. It refuses a `DATA_DIR`
-inside the repository. Override any path with `DATA_DIR`, `FAMILIES`,
-`MEMBERS`, `ENHANCED`, `OUT_DIR` or `PYTHON`, for example:
-
-```sh
-DATA_DIR=/secure/archlou PYTHON=.venv/bin/python ./run.sh
-```
-
-Or call the script directly:
-
-```sh
-python -I dedup.py FAMILIES.xlsx MEMBERS.xlsx [--enhanced ENHANCED.xlsx] --out-dir DIR
-```
+`--families`, `--members` and `--out-dir` are required; `--enhanced` is
+optional. The script stops with an error if an input file doesn't exist or
+if `--out-dir` is inside this repository.
 
 A full run takes about 2 minutes, most of it reading the spreadsheets. The
 parsed exports are cached in the output directory (`*.dedup.cache.pickle`)
@@ -178,14 +173,15 @@ python -m ruff format --check .
 Helper tools, both of which read personal data from the data directory and
 print it to the terminal only:
 
-- `tools/explain_pair.py FAMILIES MEMBERS DUID_A DUID_B --cache-dir DIR
-  [--enhanced E] [--report R]` shows how two Families are scored and why,
-  with their Members and group placement.
-- `tools/check_pairs.py REPORT.xlsx EXPECTATIONS.csv` checks a report
-  against known outcomes (`duid_a,duid_b,expect,note`, where `expect` is
-  `together` or `apart`). The expectations file holds real DUIDs, so it
-  lives in the data directory (`~/archlou-dedup/regression-pairs.csv`),
-  never in this repository.
+- `tools/explain_pair.py --families F --members M [--enhanced E]
+  --cache-dir DIR [--report R] DUID_A DUID_B` shows how two Families are
+  scored and why, with their Members and group placement. Pass the same
+  directory as `dedup.py`'s `--out-dir` as `--cache-dir` to reuse its
+  caches.
+- `tools/check_pairs.py --report REPORT.xlsx --expectations EXPECTATIONS.csv`
+  checks a report against known outcomes (`duid_a,duid_b,expect,note`,
+  where `expect` is `together` or `apart`). The expectations file holds
+  real DUIDs, so it lives in the data directory, never in this repository.
 
 See [CLAUDE.md](CLAUDE.md) for the design history and maintainer notes.
 

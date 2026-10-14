@@ -6,8 +6,8 @@ match), the member evidence behind it, each Family's members, and -- when
 a report workbook is given -- which group each DUID landed in.
 
 Usage:
-  tools/explain_pair.py FAMILIES.xlsx MEMBERS.xlsx DUID_A DUID_B \
-      --cache-dir DATA_DIR/output [--enhanced ENHANCED.xlsx] [--report REPORT.xlsx]
+  tools/explain_pair.py --families FAMILIES.xlsx --members MEMBERS.xlsx \
+      [--enhanced ENHANCED.xlsx] --cache-dir DIR [--report REPORT.xlsx] DUID_A DUID_B
 
 Use the same --cache-dir as the dedup.py run (its --out-dir) so the cached
 exports are reused.  The output contains personal data: read it in the
@@ -46,19 +46,19 @@ def report_groups(path):
 def main():
     """Load the exports, score the pair, and print the explanation."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("families")
-    ap.add_argument("members")
+    ap.add_argument("--families", required=True, type=Path, help="Family export (.xlsx)")
+    ap.add_argument("--members", required=True, type=Path, help="Member export (.xlsx)")
+    ap.add_argument("--enhanced", type=Path, help="optional enhanced Family export (.xlsx)")
+    ap.add_argument("--cache-dir", required=True, type=Path, help="the --out-dir used for dedup.py (holds its caches)")
+    ap.add_argument("--report", type=Path, help="report workbook from dedup.py, to show group membership")
     ap.add_argument("duid_a", type=int)
     ap.add_argument("duid_b", type=int)
-    ap.add_argument("--cache-dir", required=True, help="the --out-dir used for dedup.py (holds its caches)")
-    ap.add_argument("--enhanced")
-    ap.add_argument("--report", help="report workbook from dedup.py, to show group membership")
     args = ap.parse_args()
 
     d = load_dedup()
-    fams = d.load(Path(args.families), args.cache_dir)
-    members = d.load_members(Path(args.members), args.cache_dir)
-    enhanced = d.load_enhanced(Path(args.enhanced), args.cache_dir) if args.enhanced else {}
+    fams = d.load(args.families, args.cache_dir)
+    members = d.load_members(args.members, args.cache_dir)
+    enhanced = d.load_enhanced(args.enhanced, args.cache_dir) if args.enhanced else {}
     d.enrich(fams, members, enhanced)
     shared = {
         "e": d.shared_values(fams, "n_emails"),

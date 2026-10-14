@@ -11,10 +11,11 @@ README.md first for usage; this file covers the why.
   comments, tests, docs, commit messages and issue text. Use invented
   examples ("John + Mary vs John + Susan"). Parish names and Organization
   IDs are not personal data.
-- Exports, caches, reports and the regression expectations CSV live in the
-  data directory outside the checkout (default `~/archlou-dedup`). Never
-  write output into the repo; `--out-dir` is required for that reason, and
-  `run.sh` refuses a data directory inside the repo.
+- Exports, caches, reports and the regression expectations CSV live in a
+  data directory outside the checkout. Never write output into the repo:
+  every path is an explicit CLI option (`--families`, `--members`,
+  `--enhanced`, `--out-dir`) with no hard-coded defaults, and `dedup.py`
+  refuses an `--out-dir` inside the repo.
 - Never send export data to any external service.
 - Commits: `git commit -s`, no AI attribution trailers, short subject line
   plus a body explaining why.
@@ -175,11 +176,14 @@ data directory's `output/summary.md` after a run for current numbers.
 - After any rule change:
   1. `python -m pytest`, `python -m ruff check .`,
      `python -m ruff format --check .`
-  2. `./run.sh` (about 2 minutes; caches rebuild after edits).
-  3. `tools/check_pairs.py ~/archlou-dedup/output/archlou-duplicate-families.xlsx
-     ~/archlou-dedup/regression-pairs.csv` — 38 known outcomes from the
-     reviews; all pass as of the latest run. Add new cases there (DUIDs and a
-     name-free note), never here.
+  2. `python -I dedup.py --families F --members M --enhanced E --out-dir DIR`
+     (about 2 minutes; caches rebuild after edits). Ask the user where the
+     current exports are if they aren't where they were last time.
+  3. `tools/check_pairs.py --report DIR/archlou-duplicate-families.xlsx
+     --expectations regression-pairs.csv` — 38 known outcomes from the
+     reviews; all pass as of the latest run. The CSV is in the data
+     directory (as of October 2026, `~/archlou-dedup/`). Add new cases
+     there (DUIDs and a name-free note), never in this repo.
   4. Spot-check changed counts in the Summary, and use
      `tools/explain_pair.py` on surprising pairs.
   5. For significant logic changes, run an independent review agent with
@@ -193,5 +197,5 @@ data directory's `output/summary.md` after a run for current numbers.
   scripts, and the reviewers' scratch directories. They contain personal
   data in places; keep them out of this repo.
 - The input spreadsheets were originally in `~/git/parishkit/` (untracked)
-  and later moved; place current exports in the data directory under the
-  default names (see README).
+  and later moved by the user. The script has no default paths; pass the
+  current locations with the CLI options.

@@ -8,7 +8,7 @@ explainable rules, groups them, picks a surviving DUID per group, and
 writes a report workbook plus a short Markdown summary.
 
 Usage:
-  dedup.py FAMILIES.xlsx MEMBERS.xlsx [--enhanced ENHANCED.xlsx] [--out-dir DIR]
+  dedup.py --families FAMILIES.xlsx --members MEMBERS.xlsx [--enhanced ENHANCED.xlsx] --out-dir DIR
 
 See README.md for the full rules and CLAUDE.md for maintainer notes.
 
@@ -1603,19 +1603,31 @@ def write_sheet(ws, header, rows, widths):
 def main():
     """Run the full pipeline and write the report files."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("families")
-    ap.add_argument("members")
-    ap.add_argument("--enhanced", help="enhanced Family export (extra fields)")
+    ap.add_argument("--families", required=True, type=Path, help="Family export (.xlsx)")
+    ap.add_argument("--members", required=True, type=Path, help="Member export (.xlsx)")
+    ap.add_argument(
+        "--enhanced", type=Path, help="optional enhanced Family export (.xlsx): Date Last Updated, Emergency Phone"
+    )
     # Required, with no default, so reports (which contain personal data) are
     # never written into the git checkout by accident.
-    ap.add_argument("--out-dir", required=True, help="report and cache directory (keep it outside the git repo)")
+    ap.add_argument(
+        "--out-dir", required=True, type=Path, help="report and cache directory (must be outside the git repo)"
+    )
     args = ap.parse_args()
-    out_dir = Path(args.out_dir)
+    for path in (args.families, args.members, args.enhanced):
+        if path and not path.is_file():
+            ap.error(f"no such file: {path}")
+    out_dir = args.out_dir
+    repo = Path(__file__).resolve().parent
+    if out_dir.resolve() == repo or repo in out_dir.resolve().parents:
+        ap.error(
+            f"--out-dir {out_dir} is inside the git repo; reports contain personal data, so use a directory outside it"
+        )
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    fams = load(Path(args.families), out_dir)
-    members = load_members(Path(args.members), out_dir)
-    enhanced = load_enhanced(Path(args.enhanced), out_dir) if args.enhanced else {}
+    fams = load(args.families, out_dir)
+    members = load_members(args.members, out_dir)
+    enhanced = load_enhanced(args.enhanced, out_dir) if args.enhanced else {}
     unreg_bulk, upd_bulk = enrich(fams, members, enhanced)
     n_members = sum(len(v) for v in members.values())
     no_members = sum(1 for f in fams if not f["members"])
